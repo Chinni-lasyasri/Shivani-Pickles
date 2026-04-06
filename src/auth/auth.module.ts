@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
@@ -16,9 +17,12 @@ import { User } from './entities/user.entity';
       imports: [ConfigModule],
       inject: [ConfigService],
       useFactory: (config: ConfigService) => ({
-        secret: config.get<string>('JWT_SECRET', 'pickles_jwt_secret_change_me'),
+        secret: config.get<string>(
+          'JWT_SECRET',
+          'pickles_jwt_secret_change_me',
+        ),
         signOptions: {
-          expiresIn: (config.get<string>('JWT_EXPIRES_IN', '7d')) as any,
+          expiresIn: config.get<string>('JWT_EXPIRES_IN', '7d') as any,
         },
       }),
     }),

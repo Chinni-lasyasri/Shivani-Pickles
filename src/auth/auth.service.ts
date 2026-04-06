@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
   BadRequestException,
@@ -11,7 +13,12 @@ import { Repository } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { User } from './entities/user.entity';
-import { SendOtpDto, VerifyOtpDto, LoginDto, RegisterDto } from './dto/auth.dto';
+import {
+  SendOtpDto,
+  VerifyOtpDto,
+  LoginDto,
+  RegisterDto,
+} from './dto/auth.dto';
 
 @Injectable()
 export class AuthService {
@@ -73,16 +80,22 @@ export class AuthService {
       .where('user.mobile = :mobile', { mobile: dto.mobile })
       .getOne();
 
-    if (!user) throw new NotFoundException('Mobile number not found. Please send OTP first.');
+    if (!user)
+      throw new NotFoundException(
+        'Mobile number not found. Please send OTP first.',
+      );
 
     if (!user.otpHash || !user.otpExpiresAt)
       throw new BadRequestException('No OTP found. Please request a new OTP.');
 
     if (new Date() > user.otpExpiresAt)
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
 
     const isValid = await bcrypt.compare(dto.otp, user.otpHash);
-    if (!isValid) throw new BadRequestException('Invalid OTP. Please try again.');
+    if (!isValid)
+      throw new BadRequestException('Invalid OTP. Please try again.');
 
     // Mark mobile verified but don't clear OTP (we need it implicitly confirmed)
     user.mobileVerified = true;
@@ -93,7 +106,9 @@ export class AuthService {
 
   // ── Register ──────────────────────────────────────────────────────────────
 
-  async register(dto: RegisterDto): Promise<{ access_token: string; user: any }> {
+  async register(
+    dto: RegisterDto,
+  ): Promise<{ access_token: string; user: any }> {
     // Check mobile verified
     const existing = await this.userRepo
       .createQueryBuilder('user')
@@ -101,18 +116,26 @@ export class AuthService {
       .getOne();
 
     if (existing && existing.mobileVerified === false) {
-      throw new BadRequestException('Please verify your mobile number with OTP first.');
+      throw new BadRequestException(
+        'Please verify your mobile number with OTP first.',
+      );
     }
 
     if (existing && existing.firstName) {
-      throw new ConflictException('An account with this mobile number already exists.');
+      throw new ConflictException(
+        'An account with this mobile number already exists.',
+      );
     }
 
     // Check email uniqueness
     if (dto.email) {
-      const emailExists = await this.userRepo.findOne({ where: { email: dto.email } });
+      const emailExists = await this.userRepo.findOne({
+        where: { email: dto.email },
+      });
       if (emailExists && emailExists.mobile !== dto.mobile) {
-        throw new ConflictException('This email is already in use by another account.');
+        throw new ConflictException(
+          'This email is already in use by another account.',
+        );
       }
     }
 
@@ -151,13 +174,22 @@ export class AuthService {
       .where('user.mobile = :mobile', { mobile: dto.mobile })
       .getOne();
 
-    if (!user) throw new UnauthorizedException('No account found with this mobile number.');
-    if (!user.firstName) throw new UnauthorizedException('Account registration is incomplete.');
-    if (!user.isActive) throw new UnauthorizedException('Your account has been deactivated.');
-    if (!user.password) throw new BadRequestException('This account uses OTP login. Please use OTP to sign in.');
+    if (!user)
+      throw new UnauthorizedException(
+        'No account found with this mobile number.',
+      );
+    if (!user.firstName)
+      throw new UnauthorizedException('Account registration is incomplete.');
+    if (!user.isActive)
+      throw new UnauthorizedException('Your account has been deactivated.');
+    if (!user.password)
+      throw new BadRequestException(
+        'This account uses OTP login. Please use OTP to sign in.',
+      );
 
     const isMatch = await bcrypt.compare(dto.password, user.password);
-    if (!isMatch) throw new UnauthorizedException('Incorrect password. Please try again.');
+    if (!isMatch)
+      throw new UnauthorizedException('Incorrect password. Please try again.');
 
     const access_token = this.issueToken(user);
     return { access_token, user: this.sanitizeUser(user) };
@@ -165,7 +197,9 @@ export class AuthService {
 
   // ── Login with OTP ────────────────────────────────────────────────────────
 
-  async verifyOtpLogin(dto: VerifyOtpDto): Promise<{ access_token: string; user: any }> {
+  async verifyOtpLogin(
+    dto: VerifyOtpDto,
+  ): Promise<{ access_token: string; user: any }> {
     const user = await this.userRepo
       .createQueryBuilder('user')
       .addSelect('user.otpHash')
@@ -173,18 +207,24 @@ export class AuthService {
       .where('user.mobile = :mobile', { mobile: dto.mobile })
       .getOne();
 
-    if (!user) throw new NotFoundException('No account found with this mobile number.');
-    if (!user.firstName) throw new BadRequestException('Please complete registration first.');
-    if (!user.isActive) throw new UnauthorizedException('Your account has been deactivated.');
+    if (!user)
+      throw new NotFoundException('No account found with this mobile number.');
+    if (!user.firstName)
+      throw new BadRequestException('Please complete registration first.');
+    if (!user.isActive)
+      throw new UnauthorizedException('Your account has been deactivated.');
 
     if (!user.otpHash || !user.otpExpiresAt)
       throw new BadRequestException('No OTP found. Please request a new OTP.');
 
     if (new Date() > user.otpExpiresAt)
-      throw new BadRequestException('OTP has expired. Please request a new one.');
+      throw new BadRequestException(
+        'OTP has expired. Please request a new one.',
+      );
 
     const isValid = await bcrypt.compare(dto.otp, user.otpHash);
-    if (!isValid) throw new UnauthorizedException('Invalid OTP. Please try again.');
+    if (!isValid)
+      throw new UnauthorizedException('Invalid OTP. Please try again.');
 
     // Clear OTP after use
     user.otpHash = undefined as any;
