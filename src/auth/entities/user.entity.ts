@@ -26,6 +26,9 @@ export class User {
   @Column({ nullable: true, unique: true })
   email: string;
 
+  @Column({ default: 'user' })
+  role: string;
+
   @Column({ type: 'date', nullable: true })
   dob: string;
 

@@ -5,6 +5,7 @@ export declare class JwtStrategy extends JwtStrategy_base {
     validate(payload: any): Promise<{
         sub: any;
         mobile: any;
+        role: any;
     }>;
 }
 export {};

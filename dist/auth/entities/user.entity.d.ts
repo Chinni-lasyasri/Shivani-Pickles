@@ -5,6 +5,7 @@ export declare class User {
     firstName: string;
     lastName: string;
     email: string;
+    role: string;
     dob: string;
     gender: string;
     addressLine1: string;

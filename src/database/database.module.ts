@@ -12,7 +12,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
         host: config.get<string>('DB_HOST', 'localhost'),
         port: config.get<number>('DB_PORT', 5432),
         username: config.get<string>('DB_USERNAME', 'postgres'),
-        password: config.get<string>('DB_PASSWORD', 'postgres'),
+        password: config.get<string>('DB_PASSWORD', 'rcil_dev_1001'),
         database: config.get<string>('DB_NAME', 'pickles'),
         entities: [__dirname + '/../**/*.entity{.ts,.js}'],
         synchronize: config.get<string>('NODE_ENV') !== 'production', // Auto-sync only in dev

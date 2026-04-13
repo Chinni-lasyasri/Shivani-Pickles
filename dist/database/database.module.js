@@ -24,7 +24,7 @@ exports.DatabaseModule = DatabaseModule = __decorate([
                     host: config.get('DB_HOST', 'localhost'),
                     port: config.get('DB_PORT', 5432),
                     username: config.get('DB_USERNAME', 'postgres'),
-                    password: config.get('DB_PASSWORD', 'postgres'),
+                    password: config.get('DB_PASSWORD', 'rcil_dev_1001'),
                     database: config.get('DB_NAME', 'pickles'),
                     entities: [__dirname + '/../**/*.entity{.ts,.js}'],
                     synchronize: config.get('NODE_ENV') !== 'production',

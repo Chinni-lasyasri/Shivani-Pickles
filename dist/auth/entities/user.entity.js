@@ -18,6 +18,7 @@ let User = class User {
     firstName;
     lastName;
     email;
+    role;
     dob;
     gender;
     addressLine1;
@@ -57,6 +58,10 @@ __decorate([
     (0, typeorm_1.Column)({ nullable: true, unique: true }),
     __metadata("design:type", String)
 ], User.prototype, "email", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ default: 'user' }),
+    __metadata("design:type", String)
+], User.prototype, "role", void 0);
 __decorate([
     (0, typeorm_1.Column)({ type: 'date', nullable: true }),
     __metadata("design:type", String)

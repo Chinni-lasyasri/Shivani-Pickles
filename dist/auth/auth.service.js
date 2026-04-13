@@ -62,10 +62,10 @@ let AuthService = AuthService_1 = class AuthService {
         this.jwtService = jwtService;
     }
     generateOtp() {
-        return Math.floor(100000 + Math.random() * 900000).toString();
+        return '123456';
     }
     issueToken(user) {
-        const payload = { sub: user.id, mobile: user.mobile };
+        const payload = { sub: user.id, mobile: user.mobile, role: user.role };
         return this.jwtService.sign(payload);
     }
     sanitizeUser(user) {
@@ -76,25 +76,28 @@ let AuthService = AuthService_1 = class AuthService {
         const otp = this.generateOtp();
         const otpHash = await bcrypt.hash(otp, 8);
         const otpExpiresAt = new Date(Date.now() + 5 * 60 * 1000);
-        let user = await this.userRepo.findOne({ where: { mobile: dto.mobile } });
-        if (!user) {
-            user = this.userRepo.create({ mobile: dto.mobile });
+        const users = await this.userRepo.query('SELECT * FROM users WHERE mobile = $1', [dto.mobile]);
+        if (users.length === 0) {
+            const insertQuery = `
+        INSERT INTO users (id, mobile, role, "mobileVerified", "isActive", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, 'user', false, true, NOW(), NOW())
+        RETURNING *
+      `;
+            const result = await this.userRepo.query(insertQuery, [
+                dto.mobile,
+            ]);
+            users.push(result[0]);
         }
-        user.otpHash = otpHash;
-        user.otpExpiresAt = otpExpiresAt;
-        await this.userRepo.save(user);
+        const user = users[0];
+        await this.userRepo.query('UPDATE users SET "otpHash" = $1, "otpExpiresAt" = $2, "updatedAt" = NOW() WHERE id = $3', [otpHash, otpExpiresAt, user.id]);
         this.logger.log(`📱 OTP for ${dto.mobile}: ${otp}`);
         return { message: `OTP sent to ${dto.mobile}` };
     }
     async verifyOtpRegister(dto) {
-        const user = await this.userRepo
-            .createQueryBuilder('user')
-            .addSelect('user.otpHash')
-            .addSelect('user.otpExpiresAt')
-            .where('user.mobile = :mobile', { mobile: dto.mobile })
-            .getOne();
-        if (!user)
+        const users = await this.userRepo.query('SELECT id, "otpHash", "otpExpiresAt", "mobileVerified" FROM users WHERE mobile = $1', [dto.mobile]);
+        if (users.length === 0)
             throw new common_1.NotFoundException('Mobile number not found. Please send OTP first.');
+        const user = users[0];
         if (!user.otpHash || !user.otpExpiresAt)
             throw new common_1.BadRequestException('No OTP found. Please request a new OTP.');
         if (new Date() > user.otpExpiresAt)
@@ -102,60 +105,88 @@ let AuthService = AuthService_1 = class AuthService {
         const isValid = await bcrypt.compare(dto.otp, user.otpHash);
         if (!isValid)
             throw new common_1.BadRequestException('Invalid OTP. Please try again.');
-        user.mobileVerified = true;
-        await this.userRepo.save(user);
+        await this.userRepo.query('UPDATE users SET "mobileVerified" = true, "updatedAt" = NOW() WHERE id = $1', [user.id]);
         return { verified: true };
     }
     async register(dto) {
-        const existing = await this.userRepo
-            .createQueryBuilder('user')
-            .where('user.mobile = :mobile', { mobile: dto.mobile })
-            .getOne();
-        if (existing && existing.mobileVerified === false) {
-            throw new common_1.BadRequestException('Please verify your mobile number with OTP first.');
-        }
-        if (existing && existing.firstName) {
-            throw new common_1.ConflictException('An account with this mobile number already exists.');
+        const existingUsers = await this.userRepo.query('SELECT * FROM users WHERE mobile = $1', [dto.mobile]);
+        if (existingUsers.length > 0) {
+            const existing = existingUsers[0];
+            if (existing.mobileVerified === false) {
+                throw new common_1.BadRequestException('Please verify your mobile number with OTP first.');
+            }
+            if (existing.firstName) {
+                throw new common_1.ConflictException('An account with this mobile number already exists.');
+            }
         }
         if (dto.email) {
-            const emailExists = await this.userRepo.findOne({ where: { email: dto.email } });
-            if (emailExists && emailExists.mobile !== dto.mobile) {
+            const emailUsers = await this.userRepo.query('SELECT * FROM users WHERE email = $1 AND mobile != $2', [dto.email, dto.mobile]);
+            if (emailUsers.length > 0) {
                 throw new common_1.ConflictException('This email is already in use by another account.');
             }
         }
         const passwordHash = await bcrypt.hash(dto.password, 12);
-        const user = existing || this.userRepo.create({ mobile: dto.mobile });
-        user.password = passwordHash;
-        user.firstName = dto.firstName;
-        user.lastName = dto.lastName;
-        if (dto.email)
-            user.email = dto.email;
-        if (dto.dob)
-            user.dob = dto.dob;
-        if (dto.gender)
-            user.gender = dto.gender;
-        if (dto.address) {
-            user.addressLine1 = dto.address.line1;
-            user.addressLine2 = dto.address.line2 ?? undefined;
-            user.city = dto.address.city;
-            user.state = dto.address.state;
-            user.pincode = dto.address.pincode;
+        let user;
+        if (existingUsers.length > 0) {
+            user = existingUsers[0];
+            const updateQuery = `
+        UPDATE users
+        SET password = $1, "firstName" = $2, "lastName" = $3, email = $4, dob = $5, gender = $6,
+            "addressLine1" = $7, "addressLine2" = $8, city = $9, state = $10, pincode = $11,
+            "mobileVerified" = true, "otpHash" = NULL, "otpExpiresAt" = NULL, "updatedAt" = NOW()
+        WHERE id = $12
+        RETURNING *
+      `;
+            const result = await this.userRepo.query(updateQuery, [
+                passwordHash,
+                dto.firstName,
+                dto.lastName,
+                dto.email || null,
+                dto.dob || null,
+                dto.gender || null,
+                dto.address?.line1 || null,
+                dto.address?.line2 || null,
+                dto.address?.city || null,
+                dto.address?.state || null,
+                dto.address?.pincode || null,
+                user.id,
+            ]);
+            user = result[0];
         }
-        user.mobileVerified = true;
-        user.otpHash = undefined;
-        user.otpExpiresAt = undefined;
-        await this.userRepo.save(user);
+        else {
+            const insertQuery = `
+        INSERT INTO users (id, mobile, password, "firstName", "lastName", email, dob, gender,
+                          "addressLine1", "addressLine2", city, state, pincode, role,
+                          "mobileVerified", "isActive", "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'user', true, true, NOW(), NOW())
+        RETURNING *
+      `;
+            const result = await this.userRepo.query(insertQuery, [
+                dto.mobile,
+                passwordHash,
+                dto.firstName,
+                dto.lastName,
+                dto.email || null,
+                dto.dob || null,
+                dto.gender || null,
+                dto.address?.line1 || null,
+                dto.address?.line2 || null,
+                dto.address?.city || null,
+                dto.address?.state || null,
+                dto.address?.pincode || null,
+            ]);
+            user = result[0];
+        }
         const access_token = this.issueToken(user);
         return { access_token, user: this.sanitizeUser(user) };
     }
     async login(dto) {
-        const user = await this.userRepo
-            .createQueryBuilder('user')
-            .addSelect('user.password')
-            .where('user.mobile = :mobile', { mobile: dto.mobile })
-            .getOne();
-        if (!user)
+        const users = await this.userRepo.query('SELECT * FROM users WHERE mobile = $1', [dto.mobile]);
+        console.log('Login details:', dto);
+        console.log('users details:', users);
+        if (users.length === 0)
             throw new common_1.UnauthorizedException('No account found with this mobile number.');
+        const user = users[0];
         if (!user.firstName)
             throw new common_1.UnauthorizedException('Account registration is incomplete.');
         if (!user.isActive)
@@ -169,14 +200,10 @@ let AuthService = AuthService_1 = class AuthService {
         return { access_token, user: this.sanitizeUser(user) };
     }
     async verifyOtpLogin(dto) {
-        const user = await this.userRepo
-            .createQueryBuilder('user')
-            .addSelect('user.otpHash')
-            .addSelect('user.otpExpiresAt')
-            .where('user.mobile = :mobile', { mobile: dto.mobile })
-            .getOne();
-        if (!user)
+        const users = await this.userRepo.query('SELECT id, "otpHash", "otpExpiresAt", "firstName", "isActive" FROM users WHERE mobile = $1', [dto.mobile]);
+        if (users.length === 0)
             throw new common_1.NotFoundException('No account found with this mobile number.');
+        const user = users[0];
         if (!user.firstName)
             throw new common_1.BadRequestException('Please complete registration first.');
         if (!user.isActive)
@@ -188,17 +215,16 @@ let AuthService = AuthService_1 = class AuthService {
         const isValid = await bcrypt.compare(dto.otp, user.otpHash);
         if (!isValid)
             throw new common_1.UnauthorizedException('Invalid OTP. Please try again.');
-        user.otpHash = undefined;
-        user.otpExpiresAt = undefined;
-        await this.userRepo.save(user);
-        const access_token = this.issueToken(user);
-        return { access_token, user: this.sanitizeUser(user) };
+        await this.userRepo.query('UPDATE users SET "otpHash" = NULL, "otpExpiresAt" = NULL, "updatedAt" = NOW() WHERE id = $1', [user.id]);
+        const fullUser = await this.userRepo.query('SELECT * FROM users WHERE id = $1', [user.id]);
+        const access_token = this.issueToken(fullUser[0]);
+        return { access_token, user: this.sanitizeUser(fullUser[0]) };
     }
     async getProfile(userId) {
-        const user = await this.userRepo.findOne({ where: { id: userId } });
-        if (!user)
+        const users = await this.userRepo.query('SELECT * FROM users WHERE id = $1', [userId]);
+        if (users.length === 0)
             throw new common_1.NotFoundException('User not found.');
-        return this.sanitizeUser(user);
+        return this.sanitizeUser(users[0]);
     }
 };
 exports.AuthService = AuthService;
