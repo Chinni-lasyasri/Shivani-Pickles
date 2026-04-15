@@ -19,6 +19,7 @@ export declare class Order {
         pincode?: string;
     };
     notes: string;
+    active: number;
     createdAt: Date;
     updatedAt: Date;
 }

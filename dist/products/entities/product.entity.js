@@ -23,6 +23,8 @@ let Product = class Product {
     rating;
     reviews;
     tags;
+    active;
+    quantity;
     createdAt;
     updatedAt;
 };
@@ -71,6 +73,18 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'json', nullable: true }),
     __metadata("design:type", Array)
 ], Product.prototype, "tags", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'smallint',
+        default: 1,
+        comment: '0=deleted, 1=active, 2=out of stock',
+    }),
+    __metadata("design:type", Number)
+], Product.prototype, "active", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'int', default: 0 }),
+    __metadata("design:type", Number)
+], Product.prototype, "quantity", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

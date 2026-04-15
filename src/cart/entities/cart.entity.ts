@@ -32,6 +32,9 @@ export class CartItem {
   @Column({ type: 'int', default: 1 })
   quantity: number;
 
+  @Column({ type: 'smallint', default: 1, comment: '0=deleted, 1=active, 2=removed' })
+  active: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

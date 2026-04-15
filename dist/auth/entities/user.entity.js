@@ -29,7 +29,7 @@ let User = class User {
     otpHash;
     otpExpiresAt;
     mobileVerified;
-    isActive;
+    active;
     createdAt;
     updatedAt;
 };
@@ -103,9 +103,9 @@ __decorate([
     __metadata("design:type", Boolean)
 ], User.prototype, "mobileVerified", void 0);
 __decorate([
-    (0, typeorm_1.Column)({ default: true }),
-    __metadata("design:type", Boolean)
-], User.prototype, "isActive", void 0);
+    (0, typeorm_1.Column)({ type: 'smallint', default: 1, comment: '0=deleted/deactivated, 1=active, 2=suspended' }),
+    __metadata("design:type", Number)
+], User.prototype, "active", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

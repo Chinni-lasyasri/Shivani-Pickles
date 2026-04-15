@@ -10,6 +10,8 @@ export declare class Product {
     rating: number;
     reviews: number;
     tags: string[];
+    active: number;
+    quantity: number;
     createdAt: Date;
     updatedAt: Date;
 }

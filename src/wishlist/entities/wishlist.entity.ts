@@ -29,6 +29,9 @@ export class WishlistItem {
   @JoinColumn({ name: 'productId' })
   product: Product;
 
+  @Column({ type: 'smallint', default: 1, comment: '0=deleted, 1=active, 2=removed' })
+  active: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

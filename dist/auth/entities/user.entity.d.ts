@@ -16,7 +16,7 @@ export declare class User {
     otpHash: string;
     otpExpiresAt: Date;
     mobileVerified: boolean;
-    isActive: boolean;
+    active: number;
     createdAt: Date;
     updatedAt: Date;
 }

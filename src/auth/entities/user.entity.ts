@@ -61,8 +61,8 @@ export class User {
   @Column({ default: false })
   mobileVerified: boolean;
 
-  @Column({ default: true })
-  isActive: boolean;
+  @Column({ type: 'smallint', default: 1, comment: '0=deleted/deactivated, 1=active, 2=suspended' })
+  active: number;
 
   @CreateDateColumn()
   createdAt: Date;

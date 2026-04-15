@@ -27,22 +27,22 @@ let CartService = class CartService {
       SELECT c.*, p.name, p.price, p.image, p.category
       FROM cart c
       JOIN products p ON c."productId" = p.id
-      WHERE c."userId" = $1
+      WHERE c."userId" = $1 AND c.active = 1 AND p.active = 1
       ORDER BY c."createdAt" DESC
     `;
         return this.cartRepo.query(query, [userId]);
     }
     async addToCart(userId, productId, quantity = 1) {
-        const existing = await this.cartRepo.query('SELECT * FROM cart WHERE "userId" = $1 AND "productId" = $2', [userId, productId]);
+        const existing = await this.cartRepo.query('SELECT * FROM cart WHERE "userId" = $1 AND "productId" = $2 AND active = 1', [userId, productId]);
         if (existing.length > 0) {
             const newQuantity = existing[0].quantity + quantity;
-            const result = await this.cartRepo.query('UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE id = $2 RETURNING *', [newQuantity, existing[0].id]);
+            const result = await this.cartRepo.query('UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE id = $2 AND active = 1 RETURNING *', [newQuantity, existing[0].id]);
             return result[0];
         }
         else {
             const query = `
-        INSERT INTO cart (id, "userId", "productId", quantity, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+        INSERT INTO cart (id, "userId", "productId", quantity, active, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, $2, $3, 1, NOW(), NOW())
         RETURNING *
       `;
             const result = await this.cartRepo.query(query, [
@@ -58,18 +58,18 @@ let CartService = class CartService {
             await this.removeFromCart(userId, productId);
             throw new common_1.NotFoundException('Item removed from cart');
         }
-        const result = await this.cartRepo.query('UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE "userId" = $2 AND "productId" = $3 RETURNING *', [quantity, userId, productId]);
+        const result = await this.cartRepo.query('UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE "userId" = $2 AND "productId" = $3 AND active = 1 RETURNING *', [quantity, userId, productId]);
         if (result.length === 0)
             throw new common_1.NotFoundException('Item not found in cart');
         return result[0];
     }
     async removeFromCart(userId, productId) {
-        const result = await this.cartRepo.query('DELETE FROM cart WHERE "userId" = $1 AND "productId" = $2 RETURNING *', [userId, productId]);
+        const result = await this.cartRepo.query('UPDATE cart SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND "productId" = $2 AND active = 1 RETURNING *', [userId, productId]);
         if (result.length === 0)
             throw new common_1.NotFoundException('Item not found in cart');
     }
     async clearCart(userId) {
-        await this.cartRepo.query('DELETE FROM cart WHERE "userId" = $1', [userId]);
+        await this.cartRepo.query('UPDATE cart SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND active = 1', [userId]);
     }
 };
 exports.CartService = CartService;

@@ -6,6 +6,7 @@ export declare class WishlistItem {
     user: User;
     productId: string;
     product: Product;
+    active: number;
     createdAt: Date;
     updatedAt: Date;
 }

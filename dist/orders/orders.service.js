@@ -23,14 +23,16 @@ let OrdersService = class OrdersService {
         this.orderRepo = orderRepo;
     }
     async create(userId, dto) {
+        console.log('userId', userId);
+        console.log('dto', dto);
         if (!dto.items || dto.items.length === 0) {
             throw new common_1.BadRequestException('Order must contain at least one item');
         }
         const totalPrice = dto.items.reduce((sum, item) => sum + item.price * item.quantity, 0);
         const query = `
       INSERT INTO orders (id, "userId", items, "totalPrice", status, "paymentMethod", "paymentDone", 
-                         "shippingAddress", notes, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), $1, $2, $3, 'pending', $4, $5, $6, $7, NOW(), NOW())
+                         "shippingAddress", notes, active, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), $1, $2, $3, 'pending', $4, $5, $6, $7, 1, NOW(), NOW())
       RETURNING *
     `;
         const result = await this.orderRepo.query(query, [
@@ -48,18 +50,23 @@ let OrdersService = class OrdersService {
         if (userRole !== 'admin' && !userId) {
             throw new common_1.ForbiddenException('Only admins can view all orders');
         }
-        let query = 'SELECT * FROM orders';
+        let query;
         const params = [];
-        if (userRole !== 'admin' && userId) {
-            query += ' WHERE "userId" = $1';
+        if (userRole === 'admin') {
+            query = 'SELECT * FROM orders ORDER BY "createdAt" DESC';
+        }
+        else {
+            query =
+                'SELECT * FROM orders WHERE active = 1 AND "userId" = $1 ORDER BY "createdAt" DESC';
             params.push(userId);
         }
-        query += ' ORDER BY "createdAt" DESC';
+        console.log('query:', query);
         const orders = await this.orderRepo.query(query, params);
+        console.log('Fetched orders:', orders);
         return orders;
     }
     async findOne(id, userRole, userId) {
-        const query = 'SELECT * FROM orders WHERE id = $1';
+        const query = 'SELECT * FROM orders WHERE id = $1 AND active = 1';
         const orders = await this.orderRepo.query(query, [id]);
         if (orders.length === 0) {
             throw new common_1.NotFoundException('Order not found');
@@ -70,10 +77,7 @@ let OrdersService = class OrdersService {
         }
         return order;
     }
-    async updateStatus(id, status, userRole) {
-        if (userRole !== 'admin') {
-            throw new common_1.ForbiddenException('Only admins can update order status');
-        }
+    async updateStatus(id, status, userRole, userId) {
         const validStatuses = [
             'pending',
             'confirmed',
@@ -84,23 +88,42 @@ let OrdersService = class OrdersService {
         if (!validStatuses.includes(status)) {
             throw new common_1.BadRequestException(`Invalid status. Must be one of: ${validStatuses.join(', ')}`);
         }
-        const query = `
+        const orderQuery = 'SELECT * FROM orders WHERE id = $1 AND active = 1';
+        const orders = await this.orderRepo.query(orderQuery, [id]);
+        if (orders.length === 0) {
+            throw new common_1.NotFoundException('Order not found');
+        }
+        const order = orders[0];
+        if (userRole === 'admin') {
+        }
+        else if (userRole === 'user') {
+            if (order.userId !== userId) {
+                throw new common_1.ForbiddenException('You can only update your own orders');
+            }
+            if (status !== 'cancelled') {
+                throw new common_1.ForbiddenException('Users can only cancel orders');
+            }
+            if (order.status !== 'pending') {
+                throw new common_1.BadRequestException('Order cannot be cancelled. It may already be shipped or delivered.');
+            }
+        }
+        else {
+            throw new common_1.ForbiddenException('Insufficient permissions to update order status');
+        }
+        const updateQuery = `
       UPDATE orders
       SET status = $1, "updatedAt" = NOW()
       WHERE id = $2
       RETURNING *
     `;
-        const result = await this.orderRepo.query(query, [status, id]);
-        if (result.length === 0) {
-            throw new common_1.NotFoundException('Order not found');
-        }
+        const result = await this.orderRepo.query(updateQuery, [status, id]);
         return result[0];
     }
     async cancel(id, userId) {
         const query = `
       UPDATE orders
-      SET status = 'cancelled', "updatedAt" = NOW()
-      WHERE id = $1 AND "userId" = $2 AND status = 'pending'
+      SET status = 'cancelled', active = 2, "updatedAt" = NOW()
+      WHERE id = $1 AND "userId" = $2 AND status = 'pending' AND active = 1
       RETURNING *
     `;
         const result = await this.orderRepo.query(query, [id, userId]);

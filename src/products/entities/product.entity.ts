@@ -41,6 +41,16 @@ export class Product {
   @Column({ type: 'json', nullable: true })
   tags: string[];
 
+  @Column({
+    type: 'smallint',
+    default: 1,
+    comment: '0=deleted, 1=active, 2=out of stock',
+  })
+  active: number;
+
+  @Column({ type: 'int', default: 0 })
+  quantity: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

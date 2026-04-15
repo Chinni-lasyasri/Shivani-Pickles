@@ -20,6 +20,7 @@ let CartItem = class CartItem {
     productId;
     product;
     quantity;
+    active;
     createdAt;
     updatedAt;
 };
@@ -50,6 +51,10 @@ __decorate([
     (0, typeorm_1.Column)({ type: 'int', default: 1 }),
     __metadata("design:type", Number)
 ], CartItem.prototype, "quantity", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'smallint', default: 1, comment: '0=deleted, 1=active, 2=removed' }),
+    __metadata("design:type", Number)
+], CartItem.prototype, "active", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

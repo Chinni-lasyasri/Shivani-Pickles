@@ -1,10 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import {
-  Injectable,
-  NotFoundException,
-  ForbiddenException,
-} from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Product } from './entities/product.entity';
@@ -18,30 +14,24 @@ export class ProductsService {
 
   async findAll(): Promise<Product[]> {
     const products: any[] = await this.productRepo.query(
-      'SELECT * FROM products ORDER BY "createdAt" DESC',
+      'SELECT * FROM products WHERE active = 1 ORDER BY "createdAt" DESC',
     );
     return products as Product[];
   }
 
   async findOne(id: string): Promise<Product> {
     const products: any[] = await this.productRepo.query(
-      'SELECT * FROM products WHERE id = $1',
+      'SELECT * FROM products WHERE id = $1 AND active = 1',
       [id],
     );
     if (products.length === 0) throw new NotFoundException('Product not found');
     return products[0] as Product;
   }
 
-  async create(
-    productData: Partial<Product>,
-    userRole: string,
-  ): Promise<Product> {
-    if (userRole !== 'admin')
-      throw new ForbiddenException('Only admins can add products');
-
+  async create(productData: Partial<Product>): Promise<Product> {
     const query = `
-      INSERT INTO products (id, name, category, description, price, "oldPrice", image, badge, rating, reviews, tags, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+      INSERT INTO products (id, name, category, description, price, "oldPrice", image, badge, rating, reviews, tags, active, quantity, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
       RETURNING *
     `;
     const values = [
@@ -55,19 +45,14 @@ export class ProductsService {
       productData.rating || 5,
       productData.reviews || 0,
       productData.tags || [],
+      productData.active !== undefined ? productData.active : 1,
+      productData.quantity || 0,
     ];
     const result: any[] = await this.productRepo.query(query, values);
     return result[0] as Product;
   }
 
-  async update(
-    id: string,
-    productData: Partial<Product>,
-    userRole: string,
-  ): Promise<Product> {
-    if (userRole !== 'admin')
-      throw new ForbiddenException('Only admins can update products');
-
+  async update(id: string, productData: Partial<Product>): Promise<Product> {
     const setParts: string[] = [];
     const values: any[] = [];
     let paramIndex = 1;
@@ -112,6 +97,14 @@ export class ProductsService {
       setParts.push(`tags = $${paramIndex++}`);
       values.push(productData.tags);
     }
+    if (productData.active !== undefined) {
+      setParts.push(`active = $${paramIndex++}`);
+      values.push(productData.active);
+    }
+    if (productData.quantity !== undefined) {
+      setParts.push(`quantity = $${paramIndex++}`);
+      values.push(productData.quantity);
+    }
 
     if (setParts.length === 0)
       throw new NotFoundException('No fields to update');
@@ -119,7 +112,7 @@ export class ProductsService {
     const query = `
       UPDATE products
       SET ${setParts.join(', ')}, "updatedAt" = NOW()
-      WHERE id = $${paramIndex}
+      WHERE id = $${paramIndex} AND active = 1
       RETURNING *
     `;
     values.push(id);
@@ -129,12 +122,9 @@ export class ProductsService {
     return result[0] as Product;
   }
 
-  async remove(id: string, userRole: string): Promise<void> {
-    if (userRole !== 'admin')
-      throw new ForbiddenException('Only admins can delete products');
-
+  async remove(id: string): Promise<void> {
     const result = await this.productRepo.query(
-      'DELETE FROM products WHERE id = $1 RETURNING *',
+      'UPDATE products SET active = 0, "updatedAt" = NOW() WHERE id = $1 AND active = 1 RETURNING *',
       [id],
     );
     if (result.length === 0) throw new NotFoundException('Product not found');

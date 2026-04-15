@@ -12,13 +12,16 @@ async function seedDatabase() {
   const adminPassword = await bcrypt.hash('Admin@1234', 12);
   const userPassword = await bcrypt.hash('User@1234', 12);
 
-  await dataSource.query(`
-    INSERT INTO users (id, mobile, password, "firstName", "lastName", email, role, "mobileVerified", "isActive", "createdAt", "updatedAt")
+  await dataSource.query(
+    `
+    INSERT INTO users (id, mobile, password, "firstName", "lastName", email, role, "mobileVerified", active, "createdAt", "updatedAt")
     VALUES 
-      (gen_random_uuid(), '9390862744', $1, 'Admin', 'User', 'admin@pickles.local', 'admin', true, true, NOW(), NOW()),
-      (gen_random_uuid(), '6300142545', $2, 'Regular', 'Customer', 'user@pickles.local', 'user', true, true, NOW(), NOW())
+      (gen_random_uuid(), '9390862744', $1, 'Admin', 'User', 'admin@pickles.local', 'admin', true, 1, NOW(), NOW()),
+      (gen_random_uuid(), '6300142545', $2, 'Regular', 'Customer', 'user@pickles.local', 'user', true, 1, NOW(), NOW())
     ON CONFLICT (mobile) DO NOTHING
-  `, [adminPassword, userPassword]);
+  `,
+    [adminPassword, userPassword],
+  );
 
   // Seed products
   await dataSource.query(`

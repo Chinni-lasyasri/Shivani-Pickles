@@ -23,21 +23,19 @@ let ProductsService = class ProductsService {
         this.productRepo = productRepo;
     }
     async findAll() {
-        const products = await this.productRepo.query('SELECT * FROM products ORDER BY "createdAt" DESC');
+        const products = await this.productRepo.query('SELECT * FROM products WHERE active = 1 ORDER BY "createdAt" DESC');
         return products;
     }
     async findOne(id) {
-        const products = await this.productRepo.query('SELECT * FROM products WHERE id = $1', [id]);
+        const products = await this.productRepo.query('SELECT * FROM products WHERE id = $1 AND active = 1', [id]);
         if (products.length === 0)
             throw new common_1.NotFoundException('Product not found');
         return products[0];
     }
-    async create(productData, userRole) {
-        if (userRole !== 'admin')
-            throw new common_1.ForbiddenException('Only admins can add products');
+    async create(productData) {
         const query = `
-      INSERT INTO products (id, name, category, description, price, "oldPrice", image, badge, rating, reviews, tags, "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW(), NOW())
+      INSERT INTO products (id, name, category, description, price, "oldPrice", image, badge, rating, reviews, tags, active, quantity, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, NOW(), NOW())
       RETURNING *
     `;
         const values = [
@@ -51,13 +49,13 @@ let ProductsService = class ProductsService {
             productData.rating || 5,
             productData.reviews || 0,
             productData.tags || [],
+            productData.active !== undefined ? productData.active : 1,
+            productData.quantity || 0,
         ];
         const result = await this.productRepo.query(query, values);
         return result[0];
     }
-    async update(id, productData, userRole) {
-        if (userRole !== 'admin')
-            throw new common_1.ForbiddenException('Only admins can update products');
+    async update(id, productData) {
         const setParts = [];
         const values = [];
         let paramIndex = 1;
@@ -101,12 +99,20 @@ let ProductsService = class ProductsService {
             setParts.push(`tags = $${paramIndex++}`);
             values.push(productData.tags);
         }
+        if (productData.active !== undefined) {
+            setParts.push(`active = $${paramIndex++}`);
+            values.push(productData.active);
+        }
+        if (productData.quantity !== undefined) {
+            setParts.push(`quantity = $${paramIndex++}`);
+            values.push(productData.quantity);
+        }
         if (setParts.length === 0)
             throw new common_1.NotFoundException('No fields to update');
         const query = `
       UPDATE products
       SET ${setParts.join(', ')}, "updatedAt" = NOW()
-      WHERE id = $${paramIndex}
+      WHERE id = $${paramIndex} AND active = 1
       RETURNING *
     `;
         values.push(id);
@@ -115,10 +121,8 @@ let ProductsService = class ProductsService {
             throw new common_1.NotFoundException('Product not found');
         return result[0];
     }
-    async remove(id, userRole) {
-        if (userRole !== 'admin')
-            throw new common_1.ForbiddenException('Only admins can delete products');
-        const result = await this.productRepo.query('DELETE FROM products WHERE id = $1 RETURNING *', [id]);
+    async remove(id) {
+        const result = await this.productRepo.query('UPDATE products SET active = 0, "updatedAt" = NOW() WHERE id = $1 AND active = 1 RETURNING *', [id]);
         if (result.length === 0)
             throw new common_1.NotFoundException('Product not found');
     }

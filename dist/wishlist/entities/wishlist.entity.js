@@ -19,6 +19,7 @@ let WishlistItem = class WishlistItem {
     user;
     productId;
     product;
+    active;
     createdAt;
     updatedAt;
 };
@@ -45,6 +46,10 @@ __decorate([
     (0, typeorm_1.JoinColumn)({ name: 'productId' }),
     __metadata("design:type", product_entity_1.Product)
 ], WishlistItem.prototype, "product", void 0);
+__decorate([
+    (0, typeorm_1.Column)({ type: 'smallint', default: 1, comment: '0=deleted, 1=active, 2=removed' }),
+    __metadata("design:type", Number)
+], WishlistItem.prototype, "active", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

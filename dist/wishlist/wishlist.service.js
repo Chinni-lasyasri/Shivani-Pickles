@@ -27,32 +27,30 @@ let WishlistService = class WishlistService {
       SELECT w.*, p.name, p.price, p.image, p.category
       FROM wishlist w
       JOIN products p ON w."productId" = p.id
-      WHERE w."userId" = $1
+      WHERE w."userId" = $1 AND w.active = 1 AND p.active = 1
       ORDER BY w."createdAt" DESC
     `;
         return this.wishlistRepo.query(query, [userId]);
     }
     async addToWishlist(userId, productId) {
-        const existing = await this.wishlistRepo.query('SELECT * FROM wishlist WHERE "userId" = $1 AND "productId" = $2', [userId, productId]);
+        const existing = await this.wishlistRepo.query('SELECT * FROM wishlist WHERE "userId" = $1 AND "productId" = $2 AND active = 1', [userId, productId]);
         if (existing.length > 0)
             throw new common_1.ConflictException('Product already in wishlist');
         const query = `
-      INSERT INTO wishlist (id, "userId", "productId", "createdAt", "updatedAt")
-      VALUES (gen_random_uuid(), $1, $2, NOW(), NOW())
+      INSERT INTO wishlist (id, "userId", "productId", active, "createdAt", "updatedAt")
+      VALUES (gen_random_uuid(), $1, $2, 1, NOW(), NOW())
       RETURNING *
     `;
         const result = await this.wishlistRepo.query(query, [userId, productId]);
         return result[0];
     }
     async removeFromWishlist(userId, productId) {
-        const result = await this.wishlistRepo.query('DELETE FROM wishlist WHERE "userId" = $1 AND "productId" = $2 RETURNING *', [userId, productId]);
+        const result = await this.wishlistRepo.query('UPDATE wishlist SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND "productId" = $2 AND active = 1 RETURNING *', [userId, productId]);
         if (result.length === 0)
             throw new common_1.NotFoundException('Item not found in wishlist');
     }
     async clearWishlist(userId) {
-        await this.wishlistRepo.query('DELETE FROM wishlist WHERE "userId" = $1', [
-            userId,
-        ]);
+        await this.wishlistRepo.query('UPDATE wishlist SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND active = 1', [userId]);
     }
 };
 exports.WishlistService = WishlistService;

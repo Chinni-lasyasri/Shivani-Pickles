@@ -21,6 +21,7 @@ let Order = class Order {
     paymentDone;
     shippingAddress;
     notes;
+    active;
     createdAt;
     updatedAt;
 };
@@ -61,6 +62,14 @@ __decorate([
     (0, typeorm_1.Column)('varchar', { nullable: true }),
     __metadata("design:type", String)
 ], Order.prototype, "notes", void 0);
+__decorate([
+    (0, typeorm_1.Column)({
+        type: 'smallint',
+        default: 1,
+        comment: '0=deleted, 1=active, 2=cancelled',
+    }),
+    __metadata("design:type", Number)
+], Order.prototype, "active", void 0);
 __decorate([
     (0, typeorm_1.CreateDateColumn)(),
     __metadata("design:type", Date)

@@ -18,7 +18,7 @@ export class CartService {
       SELECT c.*, p.name, p.price, p.image, p.category
       FROM cart c
       JOIN products p ON c."productId" = p.id
-      WHERE c."userId" = $1
+      WHERE c."userId" = $1 AND c.active = 1 AND p.active = 1
       ORDER BY c."createdAt" DESC
     `;
     return this.cartRepo.query(query, [userId]);
@@ -31,7 +31,7 @@ export class CartService {
   ): Promise<CartItem> {
     // Check if item already exists
     const existing = await this.cartRepo.query(
-      'SELECT * FROM cart WHERE "userId" = $1 AND "productId" = $2',
+      'SELECT * FROM cart WHERE "userId" = $1 AND "productId" = $2 AND active = 1',
       [userId, productId],
     );
 
@@ -39,15 +39,15 @@ export class CartService {
       // Update quantity
       const newQuantity = existing[0].quantity + quantity;
       const result = await this.cartRepo.query(
-        'UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE id = $2 RETURNING *',
+        'UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE id = $2 AND active = 1 RETURNING *',
         [newQuantity, existing[0].id],
       );
       return result[0];
     } else {
       // Insert new
       const query = `
-        INSERT INTO cart (id, "userId", "productId", quantity, "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, $2, $3, NOW(), NOW())
+        INSERT INTO cart (id, "userId", "productId", quantity, active, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, $2, $3, 1, NOW(), NOW())
         RETURNING *
       `;
       const result = await this.cartRepo.query(query, [
@@ -70,7 +70,7 @@ export class CartService {
     }
 
     const result = await this.cartRepo.query(
-      'UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE "userId" = $2 AND "productId" = $3 RETURNING *',
+      'UPDATE cart SET quantity = $1, "updatedAt" = NOW() WHERE "userId" = $2 AND "productId" = $3 AND active = 1 RETURNING *',
       [quantity, userId, productId],
     );
     if (result.length === 0)
@@ -80,7 +80,7 @@ export class CartService {
 
   async removeFromCart(userId: string, productId: string): Promise<void> {
     const result = await this.cartRepo.query(
-      'DELETE FROM cart WHERE "userId" = $1 AND "productId" = $2 RETURNING *',
+      'UPDATE cart SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND "productId" = $2 AND active = 1 RETURNING *',
       [userId, productId],
     );
     if (result.length === 0)
@@ -88,6 +88,9 @@ export class CartService {
   }
 
   async clearCart(userId: string): Promise<void> {
-    await this.cartRepo.query('DELETE FROM cart WHERE "userId" = $1', [userId]);
+    await this.cartRepo.query(
+      'UPDATE cart SET active = 0, "updatedAt" = NOW() WHERE "userId" = $1 AND active = 1',
+      [userId],
+    );
   }
 }

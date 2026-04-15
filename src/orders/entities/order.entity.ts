@@ -46,6 +46,13 @@ export class Order {
   @Column('varchar', { nullable: true })
   notes: string;
 
+  @Column({
+    type: 'smallint',
+    default: 1,
+    comment: '0=deleted, 1=active, 2=cancelled',
+  })
+  active: number;
+
   @CreateDateColumn()
   createdAt: Date;
 

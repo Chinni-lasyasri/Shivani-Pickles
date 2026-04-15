@@ -9,10 +9,11 @@ import {
   Body,
   Param,
   UseGuards,
-  Request,
 } from '@nestjs/common';
 import { ProductsService } from './products.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
 
 @Controller('products')
 export class ProductsController {
@@ -28,25 +29,24 @@ export class ProductsController {
     return this.productsService.findOne(id);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Post()
-  create(@Body() createProductDto: any, @Request() req: any) {
-    return this.productsService.create(createProductDto, req.user.role);
+  create(@Body() createProductDto: any) {
+    return this.productsService.create(createProductDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Put(':id')
-  update(
-    @Param('id') id: string,
-    @Body() updateProductDto: any,
-    @Request() req: any,
-  ) {
-    return this.productsService.update(id, updateProductDto, req.user.role);
+  update(@Param('id') id: string, @Body() updateProductDto: any) {
+    return this.productsService.update(id, updateProductDto);
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin')
   @Delete(':id')
-  remove(@Param('id') id: string, @Request() req: any) {
-    return this.productsService.remove(id, req.user.role);
+  remove(@Param('id') id: string) {
+    return this.productsService.remove(id);
   }
 }

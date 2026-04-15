@@ -7,6 +7,7 @@ export declare class CartItem {
     productId: string;
     product: Product;
     quantity: number;
+    active: number;
     createdAt: Date;
     updatedAt: Date;
 }

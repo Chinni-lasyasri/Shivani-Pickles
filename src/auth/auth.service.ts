@@ -64,8 +64,8 @@ export class AuthService {
     );
     if (users.length === 0) {
       const insertQuery = `
-        INSERT INTO users (id, mobile, role, "mobileVerified", "isActive", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, 'user', false, true, NOW(), NOW())
+        INSERT INTO users (id, mobile, role, "mobileVerified", active, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, 'user', false, 1, NOW(), NOW())
         RETURNING *
       `;
       const result: any[] = await this.userRepo.query(insertQuery, [
@@ -191,8 +191,8 @@ export class AuthService {
       const insertQuery = `
         INSERT INTO users (id, mobile, password, "firstName", "lastName", email, dob, gender,
                           "addressLine1", "addressLine2", city, state, pincode, role,
-                          "mobileVerified", "isActive", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'user', true, true, NOW(), NOW())
+                          "mobileVerified", active, "createdAt", "updatedAt")
+        VALUES (gen_random_uuid(), $1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, 'user', true, 1, NOW(), NOW())
         RETURNING *
       `;
       const result: any[] = await this.userRepo.query(insertQuery, [
@@ -235,7 +235,7 @@ export class AuthService {
     const user = users[0];
     if (!user.firstName)
       throw new UnauthorizedException('Account registration is incomplete.');
-    if (!user.isActive)
+    if (user.active !== 1)
       throw new UnauthorizedException('Your account has been deactivated.');
     if (!user.password)
       throw new BadRequestException(
@@ -256,7 +256,7 @@ export class AuthService {
     dto: VerifyOtpDto,
   ): Promise<{ access_token: string; user: any }> {
     const users: any[] = await this.userRepo.query(
-      'SELECT id, "otpHash", "otpExpiresAt", "firstName", "isActive" FROM users WHERE mobile = $1',
+      'SELECT id, "otpHash", "otpExpiresAt", "firstName", active FROM users WHERE mobile = $1',
       [dto.mobile],
     );
 
@@ -266,7 +266,7 @@ export class AuthService {
     const user = users[0];
     if (!user.firstName)
       throw new BadRequestException('Please complete registration first.');
-    if (!user.isActive)
+    if (user.active !== 1)
       throw new UnauthorizedException('Your account has been deactivated.');
 
     if (!user.otpHash || !user.otpExpiresAt)
