@@ -48,7 +48,12 @@ async function bootstrap() {
 
   // Enable CORS for React frontend
   app.enableCors({
-    origin: ['http://localhost:3001', 'http://localhost:3000'],
+    origin: [
+      'http://localhost:3001',
+      'http://localhost:3000',
+      'shivani-pickles-hu0x2iwo3-chinni-lasyasris-projects.vercel.app',
+      'shivani-pickles-ui.vercel.app',
+    ],
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
     allowedHeaders: ['Content-Type', 'Authorization'],
     credentials: true,
