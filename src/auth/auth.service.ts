@@ -295,7 +295,7 @@ export class AuthService {
     return { access_token, user: this.sanitizeUser(fullUser[0] as User) };
   }
 
-  // ── Get current user ──────────────────────────────────────────────────────
+  // ── Get current user ─────────────────────────────────────────────────────
 
   async getProfile(userId: string): Promise<any> {
     const users: any[] = await this.userRepo.query(
